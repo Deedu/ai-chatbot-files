@@ -1,10 +1,10 @@
-import { auth } from '@/app/(auth)/auth';
 import type { ArtifactKind } from '@/components/artifact';
 import {
   deleteDocumentsByIdAfterTimestamp,
   getDocumentsById,
   saveDocument,
 } from '@/lib/db/queries';
+import { createClient } from '@/utils/supabase/server';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -14,9 +14,10 @@ export async function GET(request: Request) {
     return new Response('Missing id', { status: 400 });
   }
 
-  const session = await auth();
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (!session?.user?.id) {
+  if (error || !user) {
     return new Response('Unauthorized', { status: 401 });
   }
 
@@ -28,7 +29,7 @@ export async function GET(request: Request) {
     return new Response('Not found', { status: 404 });
   }
 
-  if (document.userId !== session.user.id) {
+  if (document.userId !== user.id) {
     return new Response('Forbidden', { status: 403 });
   }
 
@@ -43,9 +44,10 @@ export async function POST(request: Request) {
     return new Response('Missing id', { status: 400 });
   }
 
-  const session = await auth();
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (!session?.user?.id) {
+  if (error || !user) {
     return new Response('Unauthorized', { status: 401 });
   }
 
@@ -61,7 +63,7 @@ export async function POST(request: Request) {
   if (documents.length > 0) {
     const [document] = documents;
 
-    if (document.userId !== session.user.id) {
+    if (document.userId !== user.id) {
       return new Response('Forbidden', { status: 403 });
     }
   }
@@ -71,7 +73,7 @@ export async function POST(request: Request) {
     content,
     title,
     kind,
-    userId: session.user.id,
+    userId: user.id,
   });
 
   return Response.json(document, { status: 200 });
@@ -90,9 +92,10 @@ export async function DELETE(request: Request) {
     return new Response('Missing timestamp', { status: 400 });
   }
 
-  const session = await auth();
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (!session?.user?.id) {
+  if (error || !user) {
     return new Response('Unauthorized', { status: 401 });
   }
 
@@ -100,7 +103,7 @@ export async function DELETE(request: Request) {
 
   const [document] = documents;
 
-  if (document.userId !== session.user.id) {
+  if (document.userId !== user.id) {
     return new Response('Unauthorized', { status: 401 });
   }
 

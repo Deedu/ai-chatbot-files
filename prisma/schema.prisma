@@ -1,0 +1,116 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id          String       @id @default(uuid())
+  email       String       @db.VarChar(64)
+  password    String?      @db.VarChar(64)
+  chats       Chat[]
+  documents   Document[]
+  suggestions Suggestion[]
+}
+
+model Chat {
+  id         String      @id @default(uuid())
+  createdAt  DateTime
+  title      String      @db.Text
+  userId     String
+  visibility String      @default("private")
+  user       User        @relation(fields: [userId], references: [id])
+  messages   Message_v2[]
+  votesV2    Vote_v2[]
+  messagesLegacy Message[]
+  votesLegacy    Vote[]
+}
+
+// DEPRECATED: The following model is deprecated and will be removed in the future.
+model Message {
+  id        String   @id @default(uuid())
+  chatId    String
+  role      String
+  content   Json
+  createdAt DateTime
+  chat      Chat     @relation(fields: [chatId], references: [id])
+  votes     Vote[]
+
+  @@map("Message")
+}
+
+model Message_v2 {
+  id          String    @id @default(uuid())
+  chatId      String
+  role        String
+  parts       Json
+  attachments Json
+  createdAt   DateTime
+  chat        Chat      @relation(fields: [chatId], references: [id])
+  votes       Vote_v2[]
+
+  @@map("Message_v2")
+}
+
+// DEPRECATED: The following model is deprecated and will be removed in the future.
+model Vote {
+  chatId    String
+  messageId String
+  isUpvoted Boolean
+  chat      Chat    @relation(fields: [chatId], references: [id])
+  message   Message @relation(fields: [messageId], references: [id])
+
+  @@id([chatId, messageId])
+  @@map("Vote")
+}
+
+model Vote_v2 {
+  chatId    String
+  messageId String
+  isUpvoted Boolean
+  chat      Chat       @relation(fields: [chatId], references: [id])
+  message   Message_v2 @relation(fields: [messageId], references: [id])
+
+  @@id([chatId, messageId])
+  @@map("Vote_v2")
+}
+
+model Document {
+  id          String       @default(uuid())
+  createdAt   DateTime
+  title       String       @db.Text
+  content     String?      @db.Text
+  kind        String       @default("text")
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  suggestions Suggestion[]
+
+  @@id([id, createdAt])
+  @@map("Document")
+}
+
+model Suggestion {
+  id                String   @id @default(uuid())
+  documentId        String
+  documentCreatedAt DateTime
+  originalText      String   @db.Text
+  suggestedText     String   @db.Text
+  description       String?  @db.Text
+  isResolved        Boolean  @default(false)
+  userId            String
+  createdAt         DateTime
+  user              User     @relation(fields: [userId], references: [id])
+  document          Document @relation(fields: [documentId, documentCreatedAt], references: [id, createdAt])
+
+  @@map("Suggestion")
+}

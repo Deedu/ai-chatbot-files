@@ -1,10 +1,9 @@
 'use server';
 
 import { z } from 'zod';
-
-import { createUser, getUser } from '@/lib/db/queries';
-
-import { signIn } from './auth';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { createClient } from '@/utils/supabase/server';
 
 const authFormSchema = z.object({
   email: z.string().email(),
@@ -25,11 +24,16 @@ export const login = async (
       password: formData.get('password'),
     });
 
-    await signIn('credentials', {
+    const supabase = await createClient();
+    
+    const { error } = await supabase.auth.signInWithPassword({
       email: validatedData.email,
       password: validatedData.password,
-      redirect: false,
     });
+
+    if (error) {
+      return { status: 'failed' };
+    }
 
     return { status: 'success' };
   } catch (error) {
@@ -61,17 +65,23 @@ export const register = async (
       password: formData.get('password'),
     });
 
-    const [user] = await getUser(validatedData.email);
-
-    if (user) {
-      return { status: 'user_exists' } as RegisterActionState;
-    }
-    await createUser(validatedData.email, validatedData.password);
-    await signIn('credentials', {
+    const supabase = await createClient();
+    
+    const { error: checkError, data } = await supabase.auth.signUp({
       email: validatedData.email,
       password: validatedData.password,
-      redirect: false,
+      options: {
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+      },
     });
+
+    if (checkError) {
+      return { status: 'failed' };
+    }
+
+    if (data.user?.identities?.length === 0) {
+      return { status: 'user_exists' };
+    }
 
     return { status: 'success' };
   } catch (error) {
@@ -82,3 +92,10 @@ export const register = async (
     return { status: 'failed' };
   }
 };
+
+export async function signOut() {
+  const cookieStore = cookies();
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  return redirect('/login');
+}

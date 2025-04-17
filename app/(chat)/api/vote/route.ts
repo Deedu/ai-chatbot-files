@@ -1,5 +1,5 @@
-import { auth } from '@/app/(auth)/auth';
 import { getChatById, getVotesByChatId, voteMessage } from '@/lib/db/queries';
+import { createClient } from '@/utils/supabase/server';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -9,9 +9,10 @@ export async function GET(request: Request) {
     return new Response('chatId is required', { status: 400 });
   }
 
-  const session = await auth();
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (!session || !session.user || !session.user.email) {
+  if (error || !user) {
     return new Response('Unauthorized', { status: 401 });
   }
 
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
     return new Response('Chat not found', { status: 404 });
   }
 
-  if (chat.userId !== session.user.id) {
+  if (chat.userId !== user.id) {
     return new Response('Unauthorized', { status: 401 });
   }
 
@@ -42,9 +43,10 @@ export async function PATCH(request: Request) {
     return new Response('messageId and type are required', { status: 400 });
   }
 
-  const session = await auth();
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (!session || !session.user || !session.user.email) {
+  if (error || !user) {
     return new Response('Unauthorized', { status: 401 });
   }
 
@@ -54,7 +56,7 @@ export async function PATCH(request: Request) {
     return new Response('Chat not found', { status: 404 });
   }
 
-  if (chat.userId !== session.user.id) {
+  if (chat.userId !== user.id) {
     return new Response('Unauthorized', { status: 401 });
   }
 
