@@ -27,15 +27,15 @@ export const chatModels: Array<ChatModel> = [
     name: "OpenAI Reasoning",
     description: "OpenAI with advanced reasoning capabilities",
   },
-  // RunPod models
-  {
-    id: "runpod-chat",
-    name: "RunPod Gemma 3-4B",
-    description: "Gemma 3-4B model hosted on RunPod",
-  },
-  {
-    id: "gemma-7b",
-    name: "RunPod Gemma 7B",
-    description: "RunPod-hosted Gemma 7B model",
-  },
+  // // RunPod models
+  // {
+  //   id: "runpod-chat",
+  //   name: "RunPod Gemma 3-4B",
+  //   description: "Gemma 3-4B model hosted on RunPod",
+  // },
+  // {
+  //   id: "gemma-7b",
+  //   name: "RunPod Gemma 7B",
+  //   description: "RunPod-hosted Gemma 7B model",
+  // },
 ];

@@ -4,7 +4,7 @@ import {
   wrapLanguageModel,
 } from "ai";
 import { xai } from "@ai-sdk/xai";
-import { openai } from "@ai-sdk/openai";
+import { openai, createOpenAI } from "@ai-sdk/openai";
 import { isTestEnvironment } from "../constants";
 import {
   artifactModel,
@@ -12,6 +12,13 @@ import {
   reasoningModel,
   titleModel,
 } from "./models.test";
+
+const runpod = createOpenAI({
+  apiKey: process.env.RUNPOD_API_KEY,
+  baseURL: `https://api.runpod.ai/v2/${process.env.RUNPOD_ENDPOINT_ID}/openai/v1`,
+});
+
+const modelName = process.env.RUNPOD_MODEL_NAME || "";
 
 export const myProvider = isTestEnvironment
   ? customProvider({
@@ -24,9 +31,9 @@ export const myProvider = isTestEnvironment
     })
   : customProvider({
       languageModels: {
-        "chat-model": xai("grok-2-1212"),
+        "chat-model": runpod(modelName),
         "chat-model-reasoning": wrapLanguageModel({
-          model: xai("grok-3-mini-beta"),
+          model: runpod(modelName),
           middleware: extractReasoningMiddleware({ tagName: "think" }),
         }),
         "title-model": xai("grok-2-1212"),
@@ -36,6 +43,20 @@ export const myProvider = isTestEnvironment
         "small-model": xai.image("grok-2-image"),
       },
     });
+// : customProvider({
+//     languageModels: {
+//       "chat-model": xai("grok-2-1212"),
+//       "chat-model-reasoning": wrapLanguageModel({
+//         model: xai("grok-3-mini-beta"),
+//         middleware: extractReasoningMiddleware({ tagName: "think" }),
+//       }),
+//       "title-model": xai("grok-2-1212"),
+//       "artifact-model": xai("grok-2-1212"),
+//     },
+//     imageModels: {
+//       "small-model": xai.image("grok-2-image"),
+//     },
+//   });
 
 // OpenAI provider implementation
 export const openAIProvider = customProvider({

@@ -26,7 +26,6 @@ import { getWeather } from "@/lib/ai/tools/get-weather";
 import { isProductionEnvironment } from "@/lib/constants";
 import { myProvider } from "@/lib/ai/providers";
 import { verifyAuth } from "@/utils/verify-auth";
-import { runpod } from "@/lib/ai/runpod";
 
 export const maxDuration = 60;
 
@@ -84,69 +83,14 @@ export async function POST(request: Request) {
 
     console.log("selectedChatModel", selectedChatModel);
 
-    // Use RunPod client if selected
-    if (selectedChatModel.startsWith("runpod-")) {
-      // Convert UI messages to OpenAI format
-      const formattedMessages = messages
-        .map((msg) => {
-          // Skip data messages as they're not supported by OpenAI format
-          if (msg.role === "data") return null;
+    const model = myProvider.languageModel(selectedChatModel);
 
-          // Convert message content to string
-          let content = "";
-          if (typeof msg.content === "string") {
-            content = msg.content;
-          } else if (msg.parts && msg.parts.length > 0) {
-            // Join parts content if available
-            content = msg.parts
-              .map((part) =>
-                typeof part === "string" ? part : JSON.stringify(part)
-              )
-              .join("\n");
-          }
+    console.log("model", model);
 
-          return {
-            role: msg.role as "user" | "system" | "assistant",
-            content,
-          };
-        })
-        .filter(Boolean);
-
-      try {
-        const stream = await runpod.chat.completions.create({
-          model: "google/gemma-3-4b-it",
-          messages: formattedMessages as any, // Type assertion to bypass strict typing
-          stream: true,
-          max_tokens: 1000,
-          temperature: 0.7,
-        });
-
-        // Create a TransformStream for processing the response
-        const encoder = new TextEncoder();
-
-        const transformStream = new TransformStream({
-          async transform(chunk, controller) {
-            // Process each chunk and send it to the client
-            if (chunk.choices?.[0]?.delta?.content) {
-              controller.enqueue(
-                encoder.encode(chunk.choices[0].delta.content)
-              );
-            }
-          },
-        });
-
-        return new Response(transformStream.readable);
-      } catch (error) {
-        console.error("RunPod streaming error:", error);
-        return new Response("Error processing request", { status: 500 });
-      }
-    }
-
-    // Otherwise use the default AI SDK implementation
     return createDataStreamResponse({
       execute: (dataStream) => {
         const result = streamText({
-          model: myProvider.languageModel(selectedChatModel),
+          model,
           system: systemPrompt({ selectedChatModel }),
           messages,
           maxSteps: 5,
@@ -161,36 +105,36 @@ export async function POST(request: Request) {
                 ],
           experimental_transform: smoothStream({ chunking: "word" }),
           experimental_generateMessageId: generateUUID,
-          tools: {
-            getWeather,
-            createDocument: createDocument({
-              session: {
-                user,
-                expires: new Date(
-                  Date.now() + 30 * 24 * 60 * 60 * 1000
-                ).toISOString(), // Expires in 30 days
-              },
-              dataStream,
-            }),
-            updateDocument: updateDocument({
-              session: {
-                user,
-                expires: new Date(
-                  Date.now() + 30 * 24 * 60 * 60 * 1000
-                ).toISOString(), // Expires in 30 days
-              },
-              dataStream,
-            }),
-            requestSuggestions: requestSuggestions({
-              session: {
-                user,
-                expires: new Date(
-                  Date.now() + 30 * 24 * 60 * 60 * 1000
-                ).toISOString(), // Expires in 30 days
-              },
-              dataStream,
-            }),
-          },
+          // tools: {
+          //   getWeather,
+          //   createDocument: createDocument({
+          //     session: {
+          //       user,
+          //       expires: new Date(
+          //         Date.now() + 30 * 24 * 60 * 60 * 1000
+          //       ).toISOString(), // Expires in 30 days
+          //     },
+          //     dataStream,
+          //   }),
+          //   updateDocument: updateDocument({
+          //     session: {
+          //       user,
+          //       expires: new Date(
+          //         Date.now() + 30 * 24 * 60 * 60 * 1000
+          //       ).toISOString(), // Expires in 30 days
+          //     },
+          //     dataStream,
+          //   }),
+          //   requestSuggestions: requestSuggestions({
+          //     session: {
+          //       user,
+          //       expires: new Date(
+          //         Date.now() + 30 * 24 * 60 * 60 * 1000
+          //       ).toISOString(), // Expires in 30 days
+          //     },
+          //     dataStream,
+          //   }),
+          // },
           onFinish: async ({ response }) => {
             if (user?.id) {
               try {
@@ -244,6 +188,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    console.log("error", error);
     if (error instanceof Response) {
       return error;
     }
